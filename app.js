@@ -57,16 +57,17 @@ app.get('/', async (req, res) => {
 
 app.get('/about', async (req, res) => {
   const api = initApi(req)
-  api.get(
-    prismic.predicate.any('document.type', ['about', 'meta'])
-  ).then((response) => {
-    const { results } = response
-    const [about, meta] = results
-
-    res.render('pages/about', {
-      about,
-      meta
-    })
+  const [meta, about] = await Promise.all([
+    api.getSingle('meta'),
+    api.getSingle('about')
+  ])
+  // api.get(
+  //   prismic.predicate.any('document.type', ['about', 'meta'])
+  // )
+  console.log(about.data.body)
+  res.render('pages/about', {
+    about,
+    meta
   })
 })
 
