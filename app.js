@@ -1,5 +1,6 @@
 require('dotenv').config()
 const express = require('express')
+const errorHandler = require('errorhandler')
 const app = express()
 const path = require('path')
 const port = 3000
@@ -38,6 +39,8 @@ const HandleLinkResolver = (doc) => {
   return '/'
 }
 
+app.use(errorHandler())
+
 // Add a middleware function that runs on every route. It will inject
 // the prismic context to the locals so that we can access these in
 // our templates.
@@ -64,7 +67,6 @@ app.get('/about', async (req, res) => {
   // api.get(
   //   prismic.predicate.any('document.type', ['about', 'meta'])
   // )
-  console.log(about.data.body)
   res.render('pages/about', {
     about,
     meta
@@ -75,8 +77,18 @@ app.get('/collection', (req, res) => {
   res.render('pages/collection')
 })
 
-app.get('/item/:uid', (req, res) => {
-  res.render('pages/item')
+app.get('/item/:uid', async (req, res) => {
+  const api = initApi(req)
+  const meta = await api.getSingle('meta')
+  const product = await api.getByUID('product', req.params.uid, {
+    fetchLinks: 'collection.title'
+  })
+
+  console.log(product)
+  res.render('pages/item', {
+    meta,
+    product
+  })
 })
 
 app.listen(port, () => {
