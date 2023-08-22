@@ -73,8 +73,17 @@ app.get('/about', async (req, res) => {
   })
 })
 
-app.get('/collection', (req, res) => {
-  res.render('pages/collection')
+app.get('/collections', async (req, res) => {
+  const api = initApi(req)
+  const meta = await api.getSingle('meta')
+  const collections = await api.getAllByType(
+    'collection'
+  )
+  console.log(collections)
+  res.render('pages/collections', {
+    meta,
+    collections
+  })
 })
 
 app.get('/item/:uid', async (req, res) => {
@@ -84,7 +93,6 @@ app.get('/item/:uid', async (req, res) => {
     fetchLinks: 'collection.title'
   })
 
-  console.log(product)
   res.render('pages/item', {
     meta,
     product
