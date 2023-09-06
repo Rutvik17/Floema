@@ -49,6 +49,8 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(methodOverride())
 
+app.use(express.static(path.join(__dirname, 'public')))
+
 // Add a middleware function that runs on every route. It will inject
 // the prismic context to the locals so that we can access these in
 // our templates.
