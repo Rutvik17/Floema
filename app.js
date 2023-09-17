@@ -57,6 +57,17 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.use((req, res, next) => {
   res.locals.Link = HandleLinkResolver
   res.locals.PrismicH = prismicH
+  res.locals.Numbers = (index) => {
+    return index === 0
+      ? 'One'
+      : index === 1
+        ? 'Two'
+        : index === 2
+          ? 'Three'
+          : index === 3
+            ? 'Four'
+            : ''
+  }
   next()
 })
 
