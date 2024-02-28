@@ -7,6 +7,9 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 13
   },
+  env: {
+    browser: true
+  },
   rules: {
     'no-new': 0
   }
