@@ -8,24 +8,24 @@
   z-index: z('preloader');
 }
 .preloader__text {
-	font-size: 0;
+  font-size: 0;
   max-width: 66rem;
 
-	span {
-		display: inline-block;
-		overflow: hidden;
-	}
+  span {
+    display: inline-block;
+    overflow: hidden;
+  }
 
-	span span {
-		@extend %title-53;
-	}
+  span span {
+    @extend %title-53;
+  }
 }
 .preloader__number {
   @extend %description-14;
   position: absolute;
+  overflow: hidden;
   bottom: 5.1rem;
   left: 50%;
-	overflow: hidden;
   transform: translateX(-50%);
 
   @include media('<phone') {
@@ -34,5 +34,5 @@
 }
 
 .preloader__number__text {
-	display: inline-block;
+  display: inline-block;
 }

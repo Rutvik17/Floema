@@ -1,25 +1,33 @@
+/* eslint-disable no-unused-vars */
 require('dotenv').config()
-const express = require('express')
-const errorHandler = require('errorhandler')
-const app = express()
-const path = require('path')
-const port = 3000
 
 const fetch = require('node-fetch')
-const prismic = require('@prismicio/client')
-const prismicH = require('@prismicio/helpers')
-
+const logger = require('morgan')
+const path = require('path')
+const express = require('express')
+const errorHandler = require('errorhandler')
 const bodyParser = require('body-parser')
 const methodOverride = require('method-override')
-const logger = require('morgan')
 
-const accessToken = process.env.PRISMIC_ACCESS_TOKEN
-const baseURL = process.env.PRISMIC_ENDPOINT
+const app = express()
+const port = process.env.PORT || 8004
+
+const Prismic = require('@prismicio/client')
+const PrismicH = require('@prismicio/helpers')
+const { application } = require('express')
+const UAParser = require('ua-parser-js')
+
+app.use(logger('dev'))
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: false }))
+app.use(errorHandler())
+app.use(methodOverride())
+app.use(express.static(path.join(__dirname, 'public')))
 
 // Initialize the prismic.io api
 const initApi = (req) => {
-  return prismic.createClient(baseURL, {
-    accessToken,
+  return Prismic.createClient(process.env.PRISMIC_ENDPOINT, {
+    accessToken: process.env.PRISMIC_ACCESS_TOKEN,
     req,
     fetch
   })
@@ -43,20 +51,16 @@ const HandleLinkResolver = (doc) => {
   return '/'
 }
 
-app.use(logger('dev'))
-app.use(errorHandler())
-app.use(bodyParser.json())
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(methodOverride())
-
-app.use(express.static(path.join(__dirname, 'public')))
-
-// Add a middleware function that runs on every route. It will inject
-// the prismic context to the locals so that we can access these in
-// our templates.
+// Middleware to inject prismic context
 app.use((req, res, next) => {
+  const ua = UAParser(req.headers['user-agent'])
+
+  res.locals.isDesktop = ua.device.type === undefined
+  res.locals.isPhone = ua.device.type === 'mobile'
+  res.locals.isTablet = ua.device.type === 'tablet'
+
   res.locals.Link = HandleLinkResolver
-  res.locals.PrismicH = prismicH
+  res.locals.PrismicH = PrismicH
   res.locals.Numbers = (index) => {
     return index === 0
       ? 'One'
@@ -68,78 +72,97 @@ app.use((req, res, next) => {
             ? 'Four'
             : ''
   }
+
   next()
 })
 
-app.set('views', path.join(__dirname, 'views'))
 app.set('view engine', 'pug')
+app.set('views', path.join(__dirname, 'views'))
+app.locals.basedir = app.get('views')
 
 const handleRequest = async (api) => {
-  const meta = await api.getSingle('meta')
-  const navigation = await api.getSingle('navigation')
-  const preloader = await api.getSingle('preloader')
+  const [meta, preloader, navigation, home, about, { results: collections }] =
+    await Promise.all([
+      api.getSingle('meta'),
+      api.getSingle('preloader'),
+      api.getSingle('navigation'),
+      api.getSingle('home'),
+      api.getSingle('about'),
+      api.query(Prismic.Predicates.at('document.type', 'collection'), {
+        fetchLinks: 'product.image'
+      })
+    ])
+
+  //   console.log(about, home, collections);
+
+  const assets = []
+
+  home.data.gallery.forEach((item) => {
+    assets.push(item.image.url)
+  })
+
+  about.data.gallery.forEach((item) => {
+    assets.push(item.image.url)
+  })
+
+  about.data.body.forEach((section) => {
+    if (section.slice_type === 'gallery') {
+      section.items.forEach((item) => {
+        assets.push(item.image.url)
+      })
+    }
+  })
+
+  collections.forEach((collection) => {
+    collection.data.products.forEach((item) => {
+      assets.push(item.products_product.data.image.url)
+    })
+  })
+
+  console.log(assets)
+
   return {
+    assets,
     meta,
+    home,
+    collections,
+    about,
     navigation,
     preloader
   }
 }
 
 app.get('/', async (req, res) => {
-  // Here we are retrieving the first document from your API endpoint
-  const api = initApi(req)
+  const api = await initApi(req)
   const defaults = await handleRequest(api)
-  const home = await api.getSingle('home')
-  const collections = await api.getAllByType(
-    'collection', { fetchLinks: 'product.image' }
-  )
 
   res.render('pages/home', {
-    ...defaults,
-    collections,
-    home
+    ...defaults
   })
 })
 
 app.get('/about', async (req, res) => {
-  const api = initApi(req)
-  const [meta, about, navigation, preloader] = await Promise.all([
-    api.getSingle('meta'),
-    api.getSingle('about'),
-    api.getSingle('navigation'),
-    api.getSingle('preloader')
-  ])
-  // api.get(
-  //   prismic.predicate.any('document.type', ['about', 'meta'])
-  // )
+  const api = await initApi(req)
+  const defaults = await handleRequest(api)
 
-  console.log(navigation)
   res.render('pages/about', {
-    about,
-    meta,
-    navigation,
-    preloader
+    ...defaults
   })
 })
 
 app.get('/collections', async (req, res) => {
-  const api = initApi(req)
+  const api = await initApi(req)
   const defaults = await handleRequest(api)
-  const home = await api.getSingle('home')
-  const collections = await api.getAllByType(
-    'collection', { fetchLinks: 'product.image' }
-  )
 
   res.render('pages/collections', {
-    ...defaults,
-    collections,
-    home
+    ...defaults
   })
 })
 
 app.get('/detail/:uid', async (req, res) => {
-  const api = initApi(req)
+  const api = await initApi(req)
   const defaults = await handleRequest(api)
+
   const product = await api.getByUID('product', req.params.uid, {
     fetchLinks: 'collection.title'
   })
@@ -151,5 +174,5 @@ app.get('/detail/:uid', async (req, res) => {
 })
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
+  console.log(`Example app listening at http://localhost:${port}`)
 })
