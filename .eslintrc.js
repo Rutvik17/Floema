@@ -5,10 +5,12 @@ module.exports = {
     IS_DEVELOPMENT: 'readonly'
   },
   parserOptions: {
-    ecmaVersion: 13
+    ecmaVersion: 2021,
+    sourceType: 'module'
   },
   env: {
-    browser: true
+    browser: true,
+    es6: true
   },
   rules: {
     'no-new': 0
